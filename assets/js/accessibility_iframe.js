@@ -11,7 +11,7 @@
                 parent.accessibilityCurrentURL + "</a> (no element with the mura-body class)");
             return;
         }
-        let context = muraBody;
+        let context = getAxeContext(muraBody);
         let options = configureAxe();
         axe.run(context, options).then(
             (results) => {

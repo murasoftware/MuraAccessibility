@@ -12,12 +12,18 @@ component extends='mura.plugin.pluginGenericEventHandler' output=false {
         if (m.currentUser().isLoggedIn()) {
             var pluginConfig = m.getPlugin(settings.pluginName);
             var assetsPath = '/plugins/' & pluginConfig.getDirectory() & '/assets';
+            var isRenderedScan = structKeyExists(url, 'accessibilityRenderedScan')
+                && url.accessibilityRenderedScan == '1';
             var head = '
     <script src="#assetsPath#/js/axe.min.js" defer></script>
     <script src="#assetsPath#/js/accessibility_common.js" defer></script>
+            ';
+            if (!isRenderedScan) {
+                head &= '
     <script src="#assetsPath#/js/accessibility_in_page.js" defer></script>
     <link rel="stylesheet" href="#assetsPath#/css/accessibility_in_page.css">
-            ';
+                ';
+            }
             cfhtmlhead(text=head);
         }
     }

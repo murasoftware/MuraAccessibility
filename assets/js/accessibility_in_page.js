@@ -12,7 +12,7 @@ let contentLoaded = function() {
         console.log("axe: no result for this page (no element with the mura-body class)");
         return;
     }
-    let context = muraBody;
+    let context = getAxeContext(muraBody);
     let options = configureAxe();
     options.restoreScroll = true;
     let top = window.scrollY; // restoreScroll is not working well, this will save scroll position
@@ -86,28 +86,71 @@ let addNodes = function(vLi, nodes) {
     let nodeList = document.createElement('ul');
     for (let node of nodes) {
         let nodeLi = document.createElement('li');
-        let htmlSpan = document.createElement('span');
+        let htmlLink = document.createElement('a');
+        htmlLink.href = '#';
+        htmlLink.classList.add('accessibility-node-link');
         let htmlText = node.html;
         if (htmlText.length > 75)
             htmlText = htmlText.substring(0, 75) + "...";
-        htmlSpan.appendChild(document.createTextNode(htmlText));
-        nodeLi.appendChild(htmlSpan);
+        htmlLink.appendChild(document.createTextNode(htmlText));
+        nodeLi.appendChild(htmlLink);
         nodeList.appendChild(nodeLi);
-        nodeLi.addEventListener('click', (e) => {
-            let el = node.element;
+        htmlLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            let el = getNodeElement(node);
+            if (el == null)
+                return;
             removeHighlight();
-            el.scrollIntoView();
+            el.scrollIntoView({ block: 'center', inline: 'nearest' });
             document.documentElement.scrollTop -= 32; // for the Mura menubar
-            el.classList.add('accessibility-highlight');
+            highlightElement(el);
         }, false);
     }
     vLi.appendChild(nodeList);
+}
+
+let getNodeElement = function(node) {
+    if (node.element != null)
+        return node.element;
+    if (node.target == null || !Array.isArray(node.target) || node.target.length == 0)
+        return null;
+    for (let selector of node.target) {
+        try {
+            let el = document.querySelector(selector);
+            if (el != null)
+                return el;
+        } catch (error) {
+            // Ignore invalid selectors and keep trying.
+        }
+    }
+    return null;
 }
 
 let removeHighlight = function() {
     let highlightedElement = document.querySelector('.accessibility-highlight');
     if (highlightedElement != null)
         highlightedElement.classList.remove('accessibility-highlight');
+
+    let overlay = document.querySelector('.accessibility-highlight-overlay');
+    if (overlay != null)
+        overlay.parentNode.removeChild(overlay);
+}
+
+let highlightElement = function(el) {
+    // Keep the class highlight for simple cases and legacy behavior.
+    el.classList.add('accessibility-highlight');
+
+    let rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0)
+        return;
+
+    let overlay = document.createElement('div');
+    overlay.classList.add('accessibility-highlight-overlay');
+    overlay.style.top = (window.scrollY + rect.top - 4) + 'px';
+    overlay.style.left = (window.scrollX + rect.left - 4) + 'px';
+    overlay.style.width = (rect.width + 8) + 'px';
+    overlay.style.height = (rect.height + 8) + 'px';
+    document.body.appendChild(overlay);
 }
 
 document.addEventListener('DOMContentLoaded', contentLoaded);

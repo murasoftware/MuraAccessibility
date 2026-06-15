@@ -1,11 +1,22 @@
 'use strict';
 
-let currentURL, nbDocs, nbViolations, stopRequested, startButton, stopButton;
+let currentURL, currentScanMode, nbDocs, nbViolations, stopRequested, startButton, stopButton;
 let requestTimeout = 10000; // ms
+let renderedScanSettleDelay = 750; // ms
+let renderedScanMaxWait = 8000; // ms
 
 let init = function() {
     startButton = document.getElementById('startChecking');
-    startButton.addEventListener('click', (e) => startChecking(), false);
+    startButton.addEventListener('click', (e) => {
+        // Apply the selected rule set before each scan
+        let ruleSetSelect = document.getElementById('ruleSetSelect');
+        if (ruleSetSelect && window.axeRuleTagSets) {
+            axeRuleTags = window.axeRuleTagSets[ruleSetSelect.value] || axeRuleTags;
+        }
+        let scanModeSelect = document.getElementById('scanModeSelect');
+        currentScanMode = scanModeSelect == null ? 'static' : scanModeSelect.value;
+        startChecking();
+    }, false);
 
     stopButton = document.getElementById('stopChecking');
     stopButton.disabled = true;
@@ -77,6 +88,12 @@ let contentLoaded = function(content) {
     // accessibility_iframe.js will use DOMContentLoaded to continue
 }
 
+let getRenderedURL = function(url) {
+    let absoluteURL = new URL(url, location.protocol + '//' + location.host);
+    absoluteURL.searchParams.set('accessibilityRenderedScan', '1');
+    return absoluteURL.toString();
+}
+
 let outputErrorMessageAndContinue = function(message) {
     let ul = document.getElementById('violationList');
     let docLi = document.createElement('li');
@@ -93,12 +110,26 @@ let startURL = function(url) {
     currentURL = url;
     let urlSpan = document.getElementById('testURL');
     urlSpan.innerHTML = url;
-    let iframe = document.getElementById('testIframe');
+    if (currentScanMode == 'rendered') {
+        startRenderedURL(url);
+        return;
+    }
     getContentFromURL(location.protocol + "//" + location.host + url).then(
         (content) => contentLoaded(content),
         (errMessage) => outputErrorMessageAndContinue(
             'Error loading <a href="' + url + '" target="_blank">' + url +
             '</a>: ' + errMessage));
+}
+
+let startRenderedURL = function(url) {
+    let iframe = document.getElementById('testIframe');
+    let renderedURL = getRenderedURL(url);
+    let onLoad = function() {
+        iframe.removeEventListener('load', onLoad, false);
+        runRenderedScan(iframe, url);
+    };
+    iframe.addEventListener('load', onLoad, false);
+    iframe.src = renderedURL;
 }
 
 let firstURL = function() {
@@ -173,6 +204,106 @@ let addNodes = function(vLi, nodes) {
         nodeList.appendChild(nodeLi);
     }
     vLi.appendChild(nodeList);
+}
+
+let runRenderedScan = async function(iframe, url) {
+    try {
+        let doc = iframe.contentWindow.document;
+        let win = iframe.contentWindow;
+        let context = getScanContext(doc);
+        if (context == null) {
+            outputErrorMessageAndContinue(
+                'Warning: no result for <a href="' + url + '" target="_blank">' + url +
+                '</a> (no element with the mura-body class)');
+            return;
+        }
+        await waitForRenderedPageToSettle(win);
+        await scrollRenderedPage(win);
+        await waitForRenderedPageToSettle(win);
+        if (typeof win.configureAxe != 'function' || win.axe == null) {
+            outputErrorMessageAndContinue(
+                'Error loading <a href="' + url + '" target="_blank">' + url +
+                '</a>: axe is not available in rendered mode');
+            return;
+        }
+        context = win.getAxeContext(context);
+        let options = win.configureAxe();
+        let results = await win.axe.run(context, options);
+        addViolationsAndContinue(results.violations);
+    } catch (error) {
+        outputErrorMessageAndContinue(
+            'Error loading <a href="' + url + '" target="_blank">' + url +
+            '</a>: ' + error);
+    }
+}
+
+let getScanContext = function(doc) {
+    let muraBody = doc.querySelector('.mura-body');
+    if (muraBody == null)
+        muraBody = doc.querySelector('#mura-editable-attribute-body');
+    return muraBody;
+}
+
+let waitForRenderedPageToSettle = function(win) {
+    return new Promise((resolve) => {
+        let resolved = false;
+        let lastMutationAt = Date.now();
+        let doc = win.document;
+        let observer = new MutationObserver(() => {
+            lastMutationAt = Date.now();
+        });
+        let cleanup = function() {
+            if (resolved)
+                return;
+            resolved = true;
+            observer.disconnect();
+            win.clearInterval(intervalID);
+            win.clearTimeout(timeoutID);
+            resolve();
+        };
+        observer.observe(doc.documentElement, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            characterData: true
+        });
+        let intervalID = win.setInterval(() => {
+            if (Date.now() - lastMutationAt >= renderedScanSettleDelay)
+                cleanup();
+        }, 100);
+        let timeoutID = win.setTimeout(cleanup, renderedScanMaxWait);
+    });
+}
+
+let scrollRenderedPage = function(win) {
+    return new Promise((resolve) => {
+        let doc = win.document.documentElement;
+        let maxScroll = Math.max(
+            doc.scrollHeight,
+            win.document.body == null ? 0 : win.document.body.scrollHeight
+        ) - win.innerHeight;
+        if (maxScroll <= 0) {
+            resolve();
+            return;
+        }
+        let position = 0;
+        let step = Math.max(200, Math.floor(win.innerHeight * 0.75));
+        let advance = function() {
+            if (stopRequested) {
+                resolve();
+                return;
+            }
+            win.scrollTo(0, position);
+            position += step;
+            if (position <= maxScroll) {
+                win.setTimeout(advance, 150);
+            } else {
+                win.scrollTo(0, 0);
+                win.setTimeout(resolve, 150);
+            }
+        };
+        advance();
+    });
 }
 
 let getContentFromURL = function(url) {
