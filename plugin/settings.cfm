@@ -3,9 +3,9 @@
         pluginName = 'Mura Accessibility',
         package = 'MuraAccessibility',
         loadPriority = 5,
-        version = '0.0.3',
-        provider = 'Michigan State University',
-        providerURL = 'http://msu.edu/',
+        version = '1.0',
+        provider = 'Mura Software',
+        providerURL = 'http://www.murasoftware.com/',
         category = 'Application',
         reloadApplicationOnEveryRequest = false
     };
