@@ -1,17 +1,18 @@
 .accessibility-badge {
     position: fixed;
-    top: 50px;
-    right: 50px;
-    z-index: 9999;
+    top: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000000;
     border-radius: 50%;
     text-align: center;
 }
 
 .accessibility-badge-good {
-    width: 50px;
-    height: 50px;
-    font-size: 35px;
-    line-height: 35px;
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
+    line-height: 15px;
     padding: 7px;
     color: green;
     cursor: default;
@@ -21,11 +22,11 @@
 }
 
 .accessibility-badge-bad {
-    width: 75px;
-    height: 75px;
-    font-size: 50px;
-    line-height: 50px;
-    padding: 10px;
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
+    line-height: 15px;
+    padding: 7px;
     color: red;
     font-weight: bold;
     cursor: pointer;
@@ -36,10 +37,11 @@
 
 .accessibility-popup {
     position: fixed;
-    top: 140px;
-    right: 0px;
+    top: 36px;
+    left: 50%;
+    transform: translateX(-50%);
     width: 350px;
-    z-index: 9999;
+    z-index: 1000000;
     background-color: #EEA;
     border: 1px solid gray;
 }
@@ -72,29 +74,29 @@
 
 .accessibility-highlight {
     background-color: #c9f3ff;
-    outline: 4px solid #d60000;
+    outline: 4px solid rgba(224, 7, 29, 1);
     outline-offset: 2px;
-    box-shadow: 0 0 0 6px rgba(255, 220, 0, 0.7);
+    box-shadow: 0 0 0 6px rgba(224, 7, 29, 0.7);
     animation: accessibility-highlight-pulse 1.2s ease-in-out infinite;
 }
 
 .accessibility-highlight-overlay {
     position: absolute;
-    z-index: 10000;
+    z-index: 100000;
     pointer-events: none;
-    border: 4px solid #d60000;
-    box-shadow: 0 0 0 8px rgba(255, 220, 0, 0.65);
+    border: 4px solid rgba(224, 7, 29, 1);
+    box-shadow: 0 0 0 8px rgba(224, 7, 29, 0.7);
     animation: accessibility-highlight-pulse 1.2s ease-in-out infinite;
 }
 
 @keyframes accessibility-highlight-pulse {
     0% {
-        box-shadow: 0 0 0 4px rgba(255, 220, 0, 0.75);
+        box-shadow: 0 0 0 4px rgba(224, 7, 29, 0.75);
     }
     50% {
-        box-shadow: 0 0 0 8px rgba(255, 220, 0, 0.25);
+        box-shadow: 0 0 0 8px rgba(224, 7, 29, 0.25);
     }
     100% {
-        box-shadow: 0 0 0 4px rgba(255, 220, 0, 0.75);
+        box-shadow: 0 0 0 4px rgba(224, 7, 29, 0.75);
     }
 }
